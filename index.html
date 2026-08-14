@@ -1,1 +1,57 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Артур. Сферы жизни</title></head><body><p>Страница готовится к публикации.</p></body></html>
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Артур. Сферы жизни</title>
+<style>
+html,body{margin:0;min-height:100%;background:#f4efe5;color:#18332f;font:16px/1.5 Arial,sans-serif}
+#loading{display:grid;min-height:100vh;place-items:center;padding:24px;text-align:center;box-sizing:border-box}
+</style>
+</head>
+<body>
+<div id="loading">Загрузка карты…</div>
+<script>
+(async()=>{
+  const files=[
+    'payload/p01.txt','payload/p02.txt','payload/p03.txt','payload/p04.txt',
+    'payload/p05.txt','payload/p06.txt','payload/p07.txt','payload/p08.txt',
+    'payload/p09.txt','payload/p10.txt','payload/p11.txt'
+  ];
+  const parts=await Promise.all(files.map(x=>fetch(x,{cache:'no-store'}).then(r=>{
+    if(!r.ok)throw new Error(x+': '+r.status);
+    return r.text();
+  })));
+  const b64=parts.join('').replace(/\s+/g,'');
+  const raw=atob(b64);
+  const bytes=Uint8Array.from(raw,c=>c.charCodeAt(0));
+
+  async function nativeGunzip(data){
+    if(!('DecompressionStream' in window))throw new Error('native gzip unavailable');
+    const stream=new Blob([data]).stream().pipeThrough(new DecompressionStream('gzip'));
+    return new Uint8Array(await new Response(stream).arrayBuffer());
+  }
+  async function fallbackGunzip(data){
+    if(!window.fflate){
+      await new Promise((resolve,reject)=>{
+        const s=document.createElement('script');
+        s.src='https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js';
+        s.onload=resolve;s.onerror=reject;document.head.appendChild(s);
+      });
+    }
+    return window.fflate.gunzipSync(data);
+  }
+
+  let htmlBytes;
+  try{htmlBytes=await nativeGunzip(bytes)}catch(e){htmlBytes=await fallbackGunzip(bytes)}
+  const html=new TextDecoder('utf-8').decode(htmlBytes);
+  document.open();
+  document.write(html);
+  document.close();
+})().catch(err=>{
+  console.error(err);
+  document.getElementById('loading').textContent='Не удалось загрузить карту. Обновите страницу или откройте её в современном браузере.';
+});
+</script>
+</body>
+</html>
